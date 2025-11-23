@@ -1,33 +1,28 @@
 <?php
 require_once 'db.php';
 
-echo "--- CRÉATION DU COMPTE (READ ONLY) ---\n";
+echo "--- AJOUT DE L'UTILISATEUR PROFESSEUR AU SITE ---\n";
+
+$name = "Frédéric";
+$surname = "Le Goat";
+$email = "frederic@prof.com";
+$raw_password = "ProjetBdd2025!";
 
 
-$prof_user = "frédéric";
-$prof_pass = "ProjetBdd2025!";
+$hashed_password = password_hash($raw_password, PASSWORD_DEFAULT);
 
-$sql = "CREATE USER IF NOT EXISTS '$prof_user'@'%' IDENTIFIED BY '$prof_pass'";
 
-if ($conn->query($sql) === TRUE) {
-    echo "✅ Utilisateur '$prof_user' créé avec succès.\n";
-} else {
-
-    echo "ℹ️ Info création : " . $conn->error . "\n";
-}
-
-$sql = "GRANT SELECT ON railway.* TO '$prof_user'@'%'";
+$sql = "INSERT INTO user (role, name, surname, email, password) 
+        VALUES ('admin', '$name', '$surname', '$email', '$hashed_password')";
 
 if ($conn->query($sql) === TRUE) {
-    echo "✅ Droits LECTURE SEULE (SELECT) accordés.\n";
+    echo "✅ Utilisateur SITE WEB créé avec succès !\n";
+    echo "--------------------------------------\n";
+    echo "Voici les identifiants à donner au prof pour le LOGIN DU SITE :\n";
+    echo "Email : $email\n";
+    echo "Mdp   : $raw_password\n";
 } else {
-    echo "❌ Erreur droits : " . $conn->error . "\n";
+    echo "❌ Erreur : " . $conn->error . "\n";
+    echo "(Si l'erreur est 'Duplicate entry', c'est qu'il existe déjà, c'est bon !)\n";
 }
-
-$conn->query("FLUSH PRIVILEGES");
-
-echo "--- TERMINÉ ! ---\n";
-echo "Voici les identifiants pour ton prof :\n";
-echo "User : $prof_user\n";
-echo "Pass : $prof_pass\n";
 ?>

@@ -1,30 +1,31 @@
 <?php
-session_start(); // Toujours en premier !
+// 1. On démarre la session (Toujours en premier !)
+session_start();
 require_once 'db.php';
 
 $message = "";
 
-// Si le formulaire est envoyé
+// 2. Si le formulaire a été soumis (méthode POST)
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = $_POST['email'];
     $password = $_POST['password'];
 
-    // 1. On cherche l'utilisateur
-    // On utilise prepare() pour éviter les injections SQL (Sécurité !)
+    // 3. On prépare la requête SQL (Sécurité anti-injection)
     $stmt = $conn->prepare("SELECT user_id, name, surname, password, role FROM user WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
 
+    // 4. On regarde si l'email existe
     if ($row = $result->fetch_assoc()) {
-        // 2. On vérifie le hash du mot de passe
+        // 5. On vérifie le mot de passe hashé
         if (password_verify($password, $row['password'])) {
-            // BINGO ! On crée la session
+            // ✅ SUCCÈS : On remplit la session
             $_SESSION['user_id'] = $row['user_id'];
             $_SESSION['name'] = $row['name'];
             $_SESSION['role'] = $row['role'];
 
-            // Redirection vers la page admin
+            // On redirige vers le tableau de bord
             header("Location: admin.php");
             exit();
         } else {
@@ -41,82 +42,98 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <head>
     <meta charset="UTF-8">
-    <title>Connexion</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion - EcoProject</title>
     <style>
         body {
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ecf0f1;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background: #f0f2f5;
             margin: 0;
         }
 
-        .login-box {
+        .login-card {
             background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            width: 300px;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 350px;
             text-align: center;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
         }
 
         input {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
             box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
         }
 
         button {
             width: 100%;
-            padding: 10px;
-            background: #27ae60;
+            padding: 12px;
+            background-color: #27ae60;
             color: white;
             border: none;
-            border-radius: 4px;
-            cursor: pointer;
+            border-radius: 5px;
             font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
         }
 
         button:hover {
-            background: #219150;
+            background-color: #219150;
         }
 
-        .error {
-            color: red;
+        .error-msg {
+            background-color: #fadbd8;
+            color: #c0392b;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
             font-size: 0.9em;
-            margin-bottom: 10px;
         }
 
-        .home-link {
+        .back-link {
             display: block;
-            margin-top: 15px;
-            color: #666;
+            margin-top: 20px;
+            color: #7f8c8d;
             text-decoration: none;
             font-size: 0.9em;
+        }
+
+        .back-link:hover {
+            color: #27ae60;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="login-box">
-        <h2>Se connecter</h2>
-        <?php if ($message): ?>
-            <div class="error"><?php echo $message; ?></div>
+    <div class="login-card">
+        <h2>🔐 Connexion</h2>
+
+        <?php if (!empty($message)): ?>
+            <div class="error-msg"><?php echo $message; ?></div>
         <?php endif; ?>
 
         <form method="POST">
-            <input type="email" name="email" placeholder="Votre email" required>
-            <input type="password" name="password" placeholder="Votre mot de passe" required>
-            <button type="submit">Connexion</button>
+            <input type="email" name="email" placeholder="Votre Email" required>
+            <input type="password" name="password" placeholder="Votre Mot de passe" required>
+            <button type="submit">Se connecter</button>
         </form>
 
-        <a href="index.php" class="home-link">← Retour à l'accueil</a>
+        <a href="index.php" class="back-link">← Retourner à l'accueil</a>
     </div>
 
 </body>

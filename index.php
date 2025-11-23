@@ -1,40 +1,19 @@
 <?php
-// 1. On démarre la session (Toujours en premier !)
 session_start();
 require_once 'db.php';
 
-$message = "";
-
-// 2. Si le formulaire a été soumis (méthode POST)
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $email = $_POST['email'];
-    $password = $_POST['password'];
-
-    // 3. On prépare la requête SQL (Sécurité anti-injection)
-    $stmt = $conn->prepare("SELECT user_id, name, surname, password, role FROM user WHERE email = ?");
-    $stmt->bind_param("s", $email);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    // 4. On regarde si l'email existe
-    if ($row = $result->fetch_assoc()) {
-        // 5. On vérifie le mot de passe hashé
-        if (password_verify($password, $row['password'])) {
-            // ✅ SUCCÈS : On remplit la session
-            $_SESSION['user_id'] = $row['user_id'];
-            $_SESSION['name'] = $row['name'];
-            $_SESSION['role'] = $row['role'];
-
-            // On redirige vers le tableau de bord
-            header("Location: admin.php");
-            exit();
-        } else {
-            $message = "❌ Mot de passe incorrect.";
-        }
-    } else {
-        $message = "❌ Aucun compte trouvé avec cet email.";
-    }
+// Si pas connecté, on renvoie au login
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
 }
+
+// ON RÉCUPÈRE TOUTES LES TABLES
+$users = $conn->query("SELECT * FROM user");
+$defis = $conn->query("SELECT * FROM defi");
+$commentaires = $conn->query("SELECT * FROM commentaire");
+$dons = $conn->query("SELECT * FROM don");
+$citations = $conn->query("SELECT * FROM citation");
 ?>
 
 <!DOCTYPE html>
@@ -42,98 +21,189 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - EcoProject</title>
+    <title>Super Admin Dashboard</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #ecf0f1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: #f4f6f9;
+            padding: 20px;
         }
 
-        .login-card {
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 4px;
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .btn-home {
+            background: #3498db;
+        }
+
+        .btn-logout {
+            background: #e74c3c;
+        }
+
+        .section {
             background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
-            width: 100%;
-            max-width: 350px;
-            text-align: center;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
 
         h2 {
             color: #2c3e50;
-            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
         }
 
-        input {
+        table {
             width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            box-sizing: border-box;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        button:hover {
-            background-color: #219150;
-        }
-
-        .error-msg {
-            background-color: #fadbd8;
-            color: #c0392b;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
+            border-collapse: collapse;
+            margin-top: 15px;
             font-size: 0.9em;
         }
 
-        .back-link {
-            display: block;
-            margin-top: 20px;
-            color: #7f8c8d;
-            text-decoration: none;
-            font-size: 0.9em;
+        th,
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
         }
 
-        .back-link:hover {
-            color: #27ae60;
+        th {
+            background: #f8f9fa;
+            color: #555;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="login-card">
-        <h2>🔐 Connexion</h2>
+    <div class="container">
+        <div class="header">
+            <h1>Dashboard de <?php echo htmlspecialchars($_SESSION['name']); ?></h1>
+            <div>
+                <a href="index.php" class="btn btn-home">Voir le site</a>
+                <a href="logout.php" class="btn btn-logout">Déconnexion</a>
+            </div>
+        </div>
 
-        <?php if (!empty($message)): ?>
-            <div class="error-msg"><?php echo $message; ?></div>
-        <?php endif; ?>
+        <div class="section">
+            <h2>👥 Utilisateurs (<?php echo $users->num_rows; ?>)</h2>
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Nom</th>
+                    <th>Email</th>
+                    <th>Rôle</th>
+                </tr>
+                <?php while ($row = $users->fetch_assoc()): ?>
+                    <tr>
+                        <td>#<?php echo $row['user_id']; ?></td>
+                        <td><?php echo htmlspecialchars($row['name']); ?></td>
+                        <td><?php echo htmlspecialchars($row['email']); ?></td>
+                        <td><strong><?php echo $row['role']; ?></strong></td>
+                    </tr>
+                <?php endwhile; ?>
+            </table>
+        </div>
 
-        <form method="POST">
-            <input type="email" name="email" placeholder="Votre Email" required>
-            <input type="password" name="password" placeholder="Votre Mot de passe" required>
-            <button type="submit">Se connecter</button>
-        </form>
+        <div class="section">
+            <h2>🌱 Défis (<?php echo $defis->num_rows; ?>)</h2>
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Titre</th>
+                    <th>Statut</th>
+                    <th>Description</th>
+                </tr>
+                <?php while ($row = $defis->fetch_assoc()): ?>
+                    <tr>
+                        <td>#<?php echo $row['defi_id']; ?></td>
+                        <td><?php echo htmlspecialchars($row['title']); ?></td>
+                        <td><?php echo $row['statut']; ?></td>
+                        <td><?php echo substr(htmlspecialchars($row['description']), 0, 50); ?>...</td>
+                    </tr>
+                <?php endwhile; ?>
+            </table>
+        </div>
 
-        <a href="index.php" class="back-link">← Retourner à l'accueil</a>
+        <div class="section">
+            <h2>💬 Commentaires (<?php echo $commentaires->num_rows; ?>)</h2>
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Titre</th>
+                    <th>Type</th>
+                    <th>Statut</th>
+                </tr>
+                <?php while ($row = $commentaires->fetch_assoc()): ?>
+                    <tr>
+                        <td>#<?php echo $row['commentaire_id']; ?></td>
+                        <td><?php echo htmlspecialchars($row['title']); ?></td>
+                        <td><?php echo $row['type_commentaire']; ?></td>
+                        <td><?php echo $row['statut']; ?></td>
+                    </tr>
+                <?php endwhile; ?>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>💰 Dons (<?php echo $dons->num_rows; ?>)</h2>
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Montant</th>
+                    <th>Anonyme</th>
+                </tr>
+                <?php while ($row = $dons->fetch_assoc()): ?>
+                    <tr>
+                        <td>#<?php echo $row['don_id']; ?></td>
+                        <td style="color:green; font-weight:bold;"><?php echo $row['montant']; ?> €</td>
+                        <td><?php echo $row['anonyme'] ? 'Oui' : 'Non'; ?></td>
+                    </tr>
+                <?php endwhile; ?>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>📖 Citations (<?php echo $citations->num_rows; ?>)</h2>
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Auteur</th>
+                    <th>Texte</th>
+                </tr>
+                <?php while ($row = $citations->fetch_assoc()): ?>
+                    <tr>
+                        <td>#<?php echo $row['citation_id']; ?></td>
+                        <td><?php echo htmlspecialchars($row['author']); ?></td>
+                        <td>"<?php echo htmlspecialchars($row['text']); ?>"</td>
+                    </tr>
+                <?php endwhile; ?>
+            </table>
+        </div>
+
     </div>
 
 </body>
