@@ -1,9 +1,9 @@
 <?php
-$servername = "127.0.0.1";
+$servername = "shuttle.proxy.rlwy.net";
 $username = "root";
-$password = "root";
-$dbname = "projet_final_bdd";
-$port = 8889;
+$password = "REQILbyvwnmknGejvfFbFtooKVwxlFbd";
+$dbname = "railway";
+$port = 57953;
 
 // Connexion
 $conn = new mysqli($servername, $username, $password, $dbname, $port);

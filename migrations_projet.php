@@ -1,27 +1,47 @@
 <?php
-$servername = "127.0.0.1";
+// INFO : Identifiants Railway
+$servername = "shuttle.proxy.rlwy.net";
 $username = "root";
-$password = "root";
-$dbname = "projet_final_bdd";
-$port = 8889;
+$password = "REQILbyvwnmknGejvfFbFtooKVwxlFbd";
+$dbname = "railway";
+$port = 57953;
 
-// Create connection
-$conn = new mysqli($servername, $username, $password, "", $port);
+// Connexion
+$conn = new mysqli($servername, $username, $password, $dbname, $port);
 
-// Check connection
 if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+    die("❌ Connection failed: " . $conn->connect_error);
 }
 
-$sql = "CREATE DATABASE IF NOT EXISTS $dbname";
-if ($conn->query($sql) === TRUE) {
-    echo "Database created successfully or already exists<br>";
-} else {
-    echo "Error creating database: " . $conn->error . "<br>";
-    die();
+echo "--- DÉBUT DE LA MIGRATION SUR RAILWAY ---<br>";
+
+// ---------------------------------------------------------
+// 1. GRAND NETTOYAGE (RESET)
+// ---------------------------------------------------------
+// On désactive la vérification des clés étrangères pour pouvoir supprimer sans ordre précis
+$conn->query('SET FOREIGN_KEY_CHECKS = 0');
+
+// On supprime toutes les tables si elles existent déjà
+$tables = ['defi_proposition', 'citation', 'don', 'defi', 'commentaire', 'user'];
+
+foreach ($tables as $table) {
+    $sql = "DROP TABLE IF EXISTS $table";
+    if ($conn->query($sql) === TRUE) {
+        echo "Table ancienne '$table' supprimée (si elle existait)<br>";
+    } else {
+        echo "Erreur suppression $table : " . $conn->error . "<br>";
+    }
 }
 
-$conn->select_db($dbname);
+// On réactive la sécurité des clés étrangères pour la suite
+$conn->query('SET FOREIGN_KEY_CHECKS = 1');
+
+echo "-------------------------------------------<br>";
+
+
+// ---------------------------------------------------------
+// 2. CRÉATION DES TABLES (STRUCTURE NEUVE)
+// ---------------------------------------------------------
 
 // Table User
 $sql = "CREATE TABLE user (
@@ -35,9 +55,9 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )";
 
 if ($conn->query($sql) === TRUE) {
-    echo "Table user created successfully";
+    echo "✅ Table user created successfully<br>";
 } else {
-    echo "Error creating table: " . $conn->error;
+    echo "❌ Error creating table user: " . $conn->error . "<br>";
 }
 
 // Table Commentaire
@@ -55,9 +75,9 @@ FOREIGN KEY (user_id) REFERENCES user(user_id)
 )";
 
 if ($conn->query($sql) === TRUE) {
-    echo "Table commentaire created successfully";
+    echo "✅ Table commentaire created successfully<br>";
 } else {
-    echo "Error creating table: " . $conn->error;
+    echo "❌ Error creating table commentaire: " . $conn->error . "<br>";
 }
 
 // Table Defi
@@ -74,9 +94,9 @@ FOREIGN KEY (commentaire_id) REFERENCES commentaire(commentaire_id)
 )";
 
 if ($conn->query($sql) === TRUE) {
-    echo "Table defi created successfully";
+    echo "✅ Table defi created successfully<br>";
 } else {
-    echo "Error creating table: " . $conn->error;
+    echo "❌ Error creating table defi: " . $conn->error . "<br>";
 }
 
 // Ajout Foreign Key pour la table Commentaire
@@ -85,9 +105,9 @@ $sql = "ALTER TABLE commentaire
         FOREIGN KEY (defi_id) REFERENCES defi(defi_id)";
 
 if ($conn->query($sql) === TRUE) {
-    echo "Foreign Key added to commentaire successfully<br>";
+    echo "✅ Foreign Key added to commentaire successfully<br>";
 } else {
-    echo "Error adding FK: " . $conn->error . "<br>";
+    echo "❌ Error adding FK: " . $conn->error . "<br>";
 }
 
 // Table Defi_Proposition
@@ -100,9 +120,9 @@ FOREIGN KEY (user_id) REFERENCES user(user_id)
 )";
 
 if ($conn->query($sql) === TRUE) {
-    echo "Table defi_proposition created successfully";
+    echo "✅ Table defi_proposition created successfully<br>";
 } else {
-    echo "Error creating table: " . $conn->error;
+    echo "❌ Error creating table: " . $conn->error . "<br>";
 }
 
 
@@ -116,9 +136,9 @@ FOREIGN KEY (user_id) REFERENCES user(user_id)
 )";
 
 if ($conn->query($sql) === TRUE) {
-    echo "Table don created successfully";
+    echo "✅ Table don created successfully<br>";
 } else {
-    echo "Error creating table: " . $conn->error;
+    echo "❌ Error creating table: " . $conn->error . "<br>";
 }
 
 // Table Citation
@@ -133,9 +153,10 @@ FOREIGN KEY (user_id) REFERENCES user(user_id)
 )";
 
 if ($conn->query($sql) === TRUE) {
-    echo "Table citation created successfully";
+    echo "✅ Table citation created successfully<br>";
 } else {
-    echo "Error creating table: " . $conn->error;
+    echo "❌ Error creating table: " . $conn->error . "<br>";
 }
 
+echo "<br>--- MIGRATION TERMINÉE ---";
 ?>
