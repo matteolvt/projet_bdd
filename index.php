@@ -1,13 +1,40 @@
 <?php
-// 1. On démarre la session (OBLIGATOIRE pour vérifier le login)
+// 1. On démarre la session (Toujours en premier !)
 session_start();
-
-// 2. On inclut la connexion à la base de données
 require_once 'db.php';
 
-// 3. On récupère la liste des défis (du plus récent au plus vieux)
-$sql = "SELECT * FROM defi ORDER BY date_moderation DESC";
-$result = $conn->query($sql);
+$message = "";
+
+// 2. Si le formulaire a été soumis (méthode POST)
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $email = $_POST['email'];
+    $password = $_POST['password'];
+
+    // 3. On prépare la requête SQL (Sécurité anti-injection)
+    $stmt = $conn->prepare("SELECT user_id, name, surname, password, role FROM user WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    // 4. On regarde si l'email existe
+    if ($row = $result->fetch_assoc()) {
+        // 5. On vérifie le mot de passe hashé
+        if (password_verify($password, $row['password'])) {
+            // ✅ SUCCÈS : On remplit la session
+            $_SESSION['user_id'] = $row['user_id'];
+            $_SESSION['name'] = $row['name'];
+            $_SESSION['role'] = $row['role'];
+
+            // On redirige vers le tableau de bord
+            header("Location: admin.php");
+            exit();
+        } else {
+            $message = "❌ Mot de passe incorrect.";
+        }
+    } else {
+        $message = "❌ Aucun compte trouvé avec cet email.";
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -16,170 +43,97 @@ $result = $conn->query($sql);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EcoProject - Accueil</title>
+    <title>Connexion - EcoProject</title>
     <style>
-        /* --- STYLE GÉNÉRAL --- */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* --- NAVBAR (Barre de navigation) --- */
-        .navbar {
-            background: white;
-            padding: 15px 20px;
+            background-color: #ecf0f1;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-            margin-bottom: 30px;
+            height: 100vh;
+            margin: 0;
         }
 
-        .logo {
-            font-size: 1.5em;
-            font-weight: bold;
-            color: #27ae60;
-            text-decoration: none;
-        }
-
-        .nav-links a {
-            text-decoration: none;
-            color: #555;
-            margin-left: 20px;
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-
-        .nav-links a:hover {
-            color: #27ae60;
-        }
-
-        .btn-login {
-            background-color: #27ae60;
-            color: white !important;
-            padding: 8px 15px;
-            border-radius: 5px;
-        }
-
-        .btn-logout {
-            color: #e74c3c !important;
-        }
-
-        /* --- CONTENU (Cartes Défis) --- */
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        h1 {
-            text-align: center;
-            color: #2c3e50;
-            margin-bottom: 30px;
-        }
-
-        .card {
+        .login-card {
             background: white;
-            padding: 25px;
-            margin-bottom: 20px;
+            padding: 40px;
             border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            width: 100%;
+            max-width: 350px;
+            text-align: center;
         }
 
-        .card:hover {
-            transform: translateY(-3px);
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-        }
-
-        .card h2 {
-            margin-top: 0;
+        h2 {
             color: #2c3e50;
+            margin-bottom: 20px;
         }
 
-        .description {
-            line-height: 1.6;
-            color: #555;
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
         }
 
-        .badge {
-            background: #f1c40f;
-            color: #fff;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 0.8em;
-            font-weight: bold;
-            text-transform: uppercase;
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
         }
 
-        .badge.realise {
-            background: #27ae60;
+        button:hover {
+            background-color: #219150;
         }
 
-        /* Vert si réalisé */
-        .badge.realisable {
-            background: #3498db;
+        .error-msg {
+            background-color: #fadbd8;
+            color: #c0392b;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
         }
 
-        /* Bleu si réalisable */
-
-        .date {
-            font-size: 0.85em;
-            color: #95a5a6;
-            margin-top: 10px;
+        .back-link {
             display: block;
+            margin-top: 20px;
+            color: #7f8c8d;
+            text-decoration: none;
+            font-size: 0.9em;
+        }
+
+        .back-link:hover {
+            color: #27ae60;
         }
     </style>
 </head>
 
 <body>
 
-    <nav class="navbar">
-        <a href="index.php" class="logo">🌱 EcoProject</a>
-        <div class="nav-links">
-            <?php if (isset($_SESSION['user_id'])): ?>
-                <span>Bonjour, <strong><?php echo htmlspecialchars($_SESSION['name']); ?></strong></span>
-                <a href="admin.php">Mon Dashboard</a>
-                <a href="logout.php" class="btn-logout">Se déconnecter</a>
-            <?php else: ?>
-                <a href="login.php" class="btn-login">Se connecter</a>
-            <?php endif; ?>
-        </div>
-    </nav>
+    <div class="login-card">
+        <h2>🔐 Connexion</h2>
 
-    <div class="container">
-        <h1>Les derniers défis de la communauté</h1>
-
-        <?php if ($result->num_rows > 0): ?>
-            <?php while ($row = $result->fetch_assoc()): ?>
-                <div class="card">
-                    <div class="card-header">
-                        <h2><?php echo htmlspecialchars($row['title']); ?></h2>
-                        <span class="badge <?php echo $row['statut']; ?>">
-                            <?php echo htmlspecialchars($row['statut']); ?>
-                        </span>
-                    </div>
-
-                    <p class="description">
-                        <?php echo nl2br(htmlspecialchars($row['description'])); ?>
-                    </p>
-
-                    <span class="date">
-                        Modéré le : <?php echo date("d/m/Y H:i", strtotime($row['date_moderation'])); ?>
-                    </span>
-                </div>
-            <?php endwhile; ?>
-        <?php else: ?>
-            <p style="text-align: center; color: #777;">Aucun défi n'a encore été posté. Soyez le premier !</p>
+        <?php if (!empty($message)): ?>
+            <div class="error-msg"><?php echo $message; ?></div>
         <?php endif; ?>
+
+        <form method="POST">
+            <input type="email" name="email" placeholder="Votre Email" required>
+            <input type="password" name="password" placeholder="Votre Mot de passe" required>
+            <button type="submit">Se connecter</button>
+        </form>
+
+        <a href="index.php" class="back-link">← Retourner à l'accueil</a>
     </div>
 
 </body>
